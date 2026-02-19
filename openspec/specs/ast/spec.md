@@ -62,16 +62,32 @@ The AST SHALL include expression nodes for arithmetic, relational, and boolean o
 - **WHEN** an expression contains sub-expressions (e.g., `a + b * c`)
 - **THEN** those sub-expressions SHALL be represented as nested expression nodes
 
+#### Scenario: Call expression
+
+- **WHEN** a function is invoked in expression context
+- **THEN** it SHALL be represented as `Expr::Call { name: String, args: Vec<Expr> }`
+
 ---
 
 ### Requirement: Statement nodes
 
-The AST SHALL include statement nodes for assignments, conditionals, and loops.
+The AST SHALL include statement nodes for assignments, conditionals, loops, function calls, and blocks.
 
 #### Scenario: Assignment statement
 
 - **WHEN** an assignment is represented
 - **THEN** it SHALL have an identifier (target) and an expression (value)
+
+#### Scenario: Call statement
+
+- **WHEN** a function call is used as a standalone statement
+- **THEN** it SHALL be represented as `Stmt::Call { name: String, args: Vec<Expr> }`
+
+#### Scenario: Block statement
+
+- **WHEN** a block of statements is parsed
+- **THEN** it SHALL be represented as `Stmt::Block { seq: Vec<Stmt> }`
+- **AND** `seq` SHALL contain the statements in order (zero or more)
 
 #### Scenario: If-then-else statement
 
@@ -90,6 +106,17 @@ The AST SHALL include statement nodes for assignments, conditionals, and loops.
 
 ---
 
+### Requirement: Function declarations
+
+The AST SHALL include a node for function declarations.
+
+#### Scenario: Function declaration
+
+- **WHEN** a function is declared
+- **THEN** it SHALL be represented as `FunDecl { name: String, params: Vec<String>, body: Box<Stmt> }`
+
+---
+
 ### Requirement: Program root
 
 The AST SHALL define a root node representing a complete MiniC program.
@@ -98,6 +125,11 @@ The AST SHALL define a root node representing a complete MiniC program.
 
 - **WHEN** a full program is represented
 - **THEN** the root SHALL be a sequence (or list) of statements
+
+#### Scenario: Program with functions
+
+- **WHEN** a program includes function declarations
+- **THEN** the root SHALL have a `functions: Vec<FunDecl>` field and a `body: Vec<Stmt>` (or equivalent) for the main statements
 
 ---
 

@@ -206,6 +206,16 @@ fn check_call(
     args: &[CheckedExpr],
     env: &Environment<Type>,
 ) -> Result<(), TypeError> {
+    // Built-in: print accepts exactly one argument of any type.
+    if name == "print" {
+        if args.len() != 1 {
+            return Err(TypeError::new(format!(
+                "print expects 1 argument, got {}",
+                args.len()
+            )));
+        }
+        return Ok(());
+    }
     let (param_tys, _): &(Vec<Type>, Type) = env
         .lookup_function_signature(name)
         .ok_or_else(|| TypeError::new(format!("undefined function: {}", name)))?;
@@ -448,6 +458,16 @@ fn type_check_expr(
                 .map(|a| type_check_expr_to_typed(a, env))
                 .collect();
             let args_checked = args_checked?;
+            // Built-in: print accepts one arg of any type, returns void.
+            if name == "print" {
+                if args_checked.len() != 1 {
+                    return Err(TypeError::new(format!(
+                        "print expects 1 argument, got {}",
+                        args_checked.len()
+                    )));
+                }
+                return Ok(Type::Unit);
+            }
             let (param_tys, return_ty): &(Vec<Type>, Type) = env
                 .lookup_function_signature(name)
                 .ok_or_else(|| TypeError::new(format!("undefined function: {}", name)))?;

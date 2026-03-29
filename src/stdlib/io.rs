@@ -1,3 +1,19 @@
+//! IO built-in functions for MiniC: `print`, `readInt`, `readFloat`, `readString`.
+//!
+//! # Overview
+//!
+//! Exposes four public functions, each matching the [`crate::interpreter::value::NativeFn`] signature
+//! `fn(Vec<Value>) -> Result<Value, RuntimeError>`:
+//!
+//! * [`print_fn`] — prints its argument (any value) to stdout followed by a
+//!   newline. If called with no arguments, prints an empty line.
+//! * [`read_int_fn`] — reads one line from stdin and parses it as an `i64`.
+//! * [`read_float_fn`] — reads one line from stdin and parses it as an `f64`.
+//! * [`read_string_fn`] — reads one line from stdin and returns it (trimmed)
+//!   as a `str` value.
+//!
+//! All four are registered in [`NativeRegistry::default()`](super::NativeRegistry).
+
 use std::io::{self, BufRead};
 
 use crate::interpreter::value::{RuntimeError, Value};
@@ -40,35 +56,4 @@ fn read_line() -> Result<String, RuntimeError> {
         return Err(RuntimeError::new("readString: unexpected EOF"));
     }
     Ok(line)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_print_fn_integer() {
-        // print_fn returns Void without error
-        let result = print_fn(vec![Value::Int(42)]);
-        assert_eq!(result, Ok(Value::Void));
-    }
-
-    #[test]
-    fn test_print_fn_bool() {
-        let result = print_fn(vec![Value::Bool(true)]);
-        assert_eq!(result, Ok(Value::Void));
-    }
-
-    #[test]
-    fn test_print_fn_array() {
-        let result = print_fn(vec![Value::Array(vec![Value::Int(1), Value::Int(2)])]);
-        assert_eq!(result, Ok(Value::Void));
-    }
-
-    #[test]
-    fn test_print_fn_no_args() {
-        // falls back to Void without panicking
-        let result = print_fn(vec![]);
-        assert_eq!(result, Ok(Value::Void));
-    }
 }

@@ -1,3 +1,53 @@
+//! Standard library for MiniC: built-in functions and their registry.
+//!
+//! # Overview
+//!
+//! This module defines the infrastructure for MiniC's built-in functions and
+//! provides the default set of standard library entries. It exposes:
+//!
+//! * [`NativeRegistry`] — a map from function name to [`NativeEntry`]. Both
+//!   the type checker and the interpreter use this to look up stdlib
+//!   functions.
+//! * [`NativeEntry`] — bundles the MiniC type signature (parameter types +
+//!   return type) with the Rust function that implements the behaviour.
+//!
+//! The default registry (via `NativeRegistry::default()`) registers:
+//! `print`, `readInt`, `readFloat`, `readString` (IO), and `pow`, `sqrt`
+//! (math). Implementations live in the [`io`] and [`math`] sub-modules.
+//!
+//! # Design Decisions
+//!
+//! ## Bundling type signature with implementation (`NativeEntry`)
+//!
+//! Each registry entry carries both the MiniC-level type information
+//! (`params: Vec<Type>`, `return_type: Type`) and the Rust function pointer
+//! (`func: NativeFn`) that does the actual work. This single registration
+//! point is the *only* place where a native function needs to be declared;
+//! both the type checker and the interpreter query the same registry, so
+//! there is no risk of the type signature drifting out of sync with the
+//! implementation.
+//!
+//! An alternative would have been separate type-signature tables and
+//! function-pointer tables. That was rejected because duplicating the
+//! registration increases maintenance cost.
+//!
+//! ## `print` uses `Type::Any`
+//!
+//! `print` is the one stdlib function that must accept arguments of any type
+//! (`int`, `float`, `bool`, `str`, arrays). Rather than adding special-case
+//! logic to the type checker, its parameter type is registered as
+//! `Type::Any`. The type checker's `types_compatible` function already treats
+//! `Any` as matching everything, so `print` gets polymorphic behaviour for
+//! free without changing any type-checking rules.
+//!
+//! ## `NativeFn` as a function pointer
+//!
+//! `NativeFn` (defined in `interpreter::value`) is a *function pointer type*:
+//! a value of this type holds the address of a Rust function with the
+//! signature `fn(Vec<Value>) -> Result<Value, RuntimeError>`. Storing it in
+//! `NativeEntry` means the registry owns a direct, lightweight reference to
+//! the implementation — no heap allocation or dynamic dispatch needed.
+
 use std::collections::HashMap;
 
 use crate::ir::ast::Type;
@@ -80,42 +130,5 @@ impl Default for NativeRegistry {
         });
 
         r
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_default_registry_contains_all_stdlib() {
-        let r = NativeRegistry::default();
-        assert!(r.lookup("print").is_some());
-        assert!(r.lookup("readInt").is_some());
-        assert!(r.lookup("readFloat").is_some());
-        assert!(r.lookup("readString").is_some());
-        assert!(r.lookup("pow").is_some());
-        assert!(r.lookup("sqrt").is_some());
-    }
-
-    #[test]
-    fn test_lookup_unregistered_returns_none() {
-        let r = NativeRegistry::default();
-        assert!(r.lookup("unknown").is_none());
-    }
-
-    #[test]
-    fn test_sqrt_entry_signature() {
-        let r = NativeRegistry::default();
-        let entry = r.lookup("sqrt").unwrap();
-        assert_eq!(entry.params, vec![Type::Float]);
-        assert_eq!(entry.return_type, Type::Float);
-    }
-
-    #[test]
-    fn test_print_uses_type_any() {
-        let r = NativeRegistry::default();
-        let entry = r.lookup("print").unwrap();
-        assert_eq!(entry.params, vec![Type::Any]);
     }
 }

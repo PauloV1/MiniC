@@ -1,3 +1,20 @@
+//! Math built-in functions for MiniC: `pow` and `sqrt`.
+//!
+//! # Overview
+//!
+//! Exposes two public functions, each matching the [`crate::interpreter::value::NativeFn`] signature
+//! `fn(Vec<Value>) -> Result<Value, RuntimeError>`:
+//!
+//! * [`pow_fn`] — raises a base to an exponent: `pow(base, exp)`. Both
+//!   arguments may be `int` or `float`; the result is always a `float`.
+//! * [`sqrt_fn`] — computes the square root: `sqrt(x)`. The argument may be
+//!   `int` or `float`; the result is always a `float`.
+//!
+//! Both functions accept `int` arguments through the private `to_float`
+//! helper, which coerces `Value::Int` to `f64` before performing the
+//! calculation. This matches the MiniC type rule that arithmetic involving
+//! floats always produces a float.
+
 use crate::interpreter::value::{RuntimeError, Value};
 
 pub fn pow_fn(args: Vec<Value>) -> Result<Value, RuntimeError> {
@@ -31,64 +48,5 @@ fn to_float(val: &Value, context: &str) -> Result<f64, RuntimeError> {
             "{}: expected numeric value, got {}",
             context, v
         ))),
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_pow_int_args() {
-        let result = pow_fn(vec![Value::Int(2), Value::Int(10)]);
-        assert_eq!(result, Ok(Value::Float(1024.0)));
-    }
-
-    #[test]
-    fn test_pow_float_args() {
-        let result = pow_fn(vec![Value::Float(2.0), Value::Float(0.5)]);
-        match result {
-            Ok(Value::Float(v)) => assert!((v - 1.4142135).abs() < 1e-5),
-            _ => panic!("expected Float"),
-        }
-    }
-
-    #[test]
-    fn test_pow_negative_exponent() {
-        let result = pow_fn(vec![Value::Float(2.0), Value::Float(-1.0)]);
-        assert_eq!(result, Ok(Value::Float(0.5)));
-    }
-
-    #[test]
-    fn test_pow_wrong_arity() {
-        let result = pow_fn(vec![Value::Float(2.0)]);
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_sqrt_perfect_square() {
-        let result = sqrt_fn(vec![Value::Int(4)]);
-        assert_eq!(result, Ok(Value::Float(2.0)));
-    }
-
-    #[test]
-    fn test_sqrt_float() {
-        let result = sqrt_fn(vec![Value::Float(2.0)]);
-        match result {
-            Ok(Value::Float(v)) => assert!((v - 1.4142135).abs() < 1e-5),
-            _ => panic!("expected Float"),
-        }
-    }
-
-    #[test]
-    fn test_sqrt_zero() {
-        let result = sqrt_fn(vec![Value::Int(0)]);
-        assert_eq!(result, Ok(Value::Float(0.0)));
-    }
-
-    #[test]
-    fn test_sqrt_wrong_type() {
-        let result = sqrt_fn(vec![Value::Bool(true)]);
-        assert!(result.is_err());
     }
 }

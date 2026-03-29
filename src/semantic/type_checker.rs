@@ -1,7 +1,48 @@
-//! Type checker for MiniC.
+//! Type checker implementation for MiniC.
 //!
-//! Consumes `UncheckedProgram` and returns `Result<CheckedProgram, TypeError>`.
-//! Fails at the first error.
+//! # Overview
+//!
+//! Provides [`type_check`], which walks an [`UncheckedProgram`] and either
+//! returns a [`CheckedProgram`] (every node annotated with its [`Type`]) or
+//! a [`TypeError`] describing the first violation found.
+//!
+//! Also defines [`TypeError`], the error type returned on failure.
+//!
+//! # Design Decisions
+//!
+//! ## Using `Environment<Type>` for variable tracking
+//!
+//! The type checker stores the *declared type* of every in-scope name in an
+//! [`Environment<Type>`](crate::environment::Environment). Here `Type` is the
+//! MiniC type (e.g., `Type::Int`), not a Rust type. This is the same
+//! `Environment` struct used by the interpreter — but instantiated with
+//! `Type` instead of `Value`. Functions are also stored in this environment
+//! as `Type::Fun(param_types, return_type)`, so the same lookup mechanism
+//! handles both variable and function name resolution.
+//!
+//! ## Function signatures registered before bodies are checked
+//!
+//! All function signatures are added to the environment before any function
+//! body is checked. This allows functions to call each other (mutual
+//! recursion) without requiring forward declarations. A `fn_snapshot` of the
+//! function-only environment is taken after this step and restored at the
+//! start of each function body check, ensuring variable bindings from one
+//! function do not leak into another.
+//!
+//! ## Block scoping via `snapshot` / `restore`
+//!
+//! When the type checker enters a block statement, it takes a snapshot of the
+//! current environment. When the block exits (normally or via early return),
+//! it restores the snapshot, discarding any variables declared inside. This
+//! correctly implements lexical block scoping without a separate scope-stack
+//! data structure.
+//!
+//! ## `Type::Any` and `types_compatible`
+//!
+//! The `types_compatible` function implements MiniC's assignability rules,
+//! including `Int`↔`Float` coercion and the `Any` wildcard used by `print`.
+//! Centralising compatibility logic here means all callers (declaration,
+//! assignment, call-argument checking) share one consistent definition.
 
 use std::collections::HashMap;
 

@@ -1,4 +1,31 @@
 //! Statement parsers for MiniC.
+//!
+//! # Overview
+//!
+//! Exposes two public functions:
+//!
+//! * [`statement`] — the top-level entry point; tries each statement form in
+//!   order: `return`, `if`, `while`, call-statement, block, declaration,
+//!   assignment.
+//! * [`assignment`] — parses `lvalue = expression`; exported separately
+//!   because the test suite uses it directly.
+//!
+//! # Design Decisions
+//!
+//! ## Declaration must be tried before assignment
+//!
+//! Both `int x = 0` (declaration) and `x = 0` (assignment) begin with an
+//! identifier-like token, so the order of alternatives in [`statement`]
+//! matters. Declaration is tried first because it starts with a type keyword
+//! (`int`, `float`, …), which is unambiguous. If declaration fails, the
+//! parser backtracks and tries assignment.
+//!
+//! ## `lvalue` handles nested array indexing on the left-hand side
+//!
+//! An assignment target can be a plain variable (`x = …`) or a nested array
+//! element (`a[i][j] = …`). The private `lvalue` parser accumulates index
+//! suffixes in a loop using the same pattern as the `primary` parser in
+//! `expressions.rs`, producing a left-associative `Index` chain.
 
 use crate::ir::ast::{Expr, ExprD, Statement, StatementD, UncheckedExpr, UncheckedStmt};
 use crate::parser::expressions::{expression, parse_call};

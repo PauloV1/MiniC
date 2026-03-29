@@ -1,3 +1,38 @@
+//! Statement executor for the MiniC interpreter.
+//!
+//! # Overview
+//!
+//! Exposes one public function:
+//!
+//! * [`exec_stmt`] — executes a [`CheckedStmt`] and returns an [`ExecResult`]:
+//!   * `Ok(None)` — the statement completed normally (no early return).
+//!   * `Ok(Some(value))` — a `return` statement was hit; the value is
+//!     propagated up to the caller (`eval_call` in `eval_expr`).
+//!   * `Err(RuntimeError)` — a runtime error occurred.
+//!
+//! Also defines `ExecResult`, the return type alias used throughout.
+//!
+//! # Design Decisions
+//!
+//! ## `Option<Value>` to signal early return
+//!
+//! Statements do not inherently produce values, but a `return` statement
+//! inside a function body must pass its value back through potentially many
+//! levels of nested `exec_stmt` calls (blocks inside loops inside blocks,
+//! etc.). Using `Option<Value>` as the success case of `ExecResult` encodes
+//! this cleanly: `None` means "keep going", `Some(v)` means "stop and return
+//! this value". Each `Block` and `While` arm checks for `Some` and
+//! short-circuits immediately.
+//!
+//! ## Block scoping via `names` / `remove_new`
+//!
+//! When `exec_stmt` enters a `Block`, it records the set of names currently
+//! bound in the environment (`env.names()`). When the block exits, it calls
+//! `env.remove_new(&outer_keys)` to drop any name that was declared inside
+//! the block. Crucially, this only removes *new* bindings — assignments to
+//! variables declared in an outer scope (e.g., a loop counter) are preserved.
+//! This gives MiniC correct lexical block scoping without a scope stack.
+
 use crate::environment::Environment;
 use crate::ir::ast::{CheckedExpr, CheckedStmt, Expr, Statement};
 

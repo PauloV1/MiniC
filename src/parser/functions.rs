@@ -1,4 +1,25 @@
-//! Function declaration parser for MiniC.
+//! Function declaration and type-name parsers for MiniC.
+//!
+//! # Overview
+//!
+//! Exposes two public functions:
+//!
+//! * [`fun_decl`] — parses a complete function declaration in C style:
+//!   `ReturnType name(Type param, …) body`. The body is any single
+//!   statement (typically a block `{ … }`).
+//! * [`type_name`] — parses a MiniC type keyword (`int`, `float`, `bool`,
+//!   `str`, `void`, or an array variant like `int[]`). Re-used by the
+//!   statement parser for variable declarations.
+//!
+//! # Design Decisions
+//!
+//! ## 2D array types must be tried before 1D
+//!
+//! `nom`'s `alt` combinator tries alternatives left-to-right and stops at
+//! the first match. Because `int[][]` starts with the same prefix as
+//! `int[]`, the 2D variants must appear before the 1D variants in the
+//! `alt` list, otherwise `int[][]` would be incorrectly parsed as `int[]`
+//! followed by a leftover `[]`.
 
 use crate::ir::ast::{FunDecl, Type, UncheckedFunDecl};
 use crate::parser::identifiers::identifier;

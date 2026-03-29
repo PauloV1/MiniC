@@ -1,10 +1,52 @@
-//! Abstract syntax tree for MiniC.
+//! Abstract Syntax Tree (AST) node definitions for MiniC.
 //!
-//! The AST is parameterized by a type decoration `Ty`:
-//! - `Ty = ()` for unchecked (parser output)
-//! - `Ty = Type` for checked (type checker output)
+//! # Overview
 //!
-//! See `doc/architecture/ast.md` for the design.
+//! This file defines every node type that can appear in a MiniC program:
+//!
+//! * [`Type`] — the MiniC type system (`int`, `float`, `bool`, `str`, arrays,
+//!   functions, and the special `Any` used for polymorphic stdlib parameters).
+//! * [`Literal`] — a constant value written directly in source code.
+//! * [`Expr`] / [`ExprD`] — expressions (arithmetic, comparisons, calls, …).
+//! * [`Statement`] / [`StatementD`] — statements (declarations, assignments,
+//!   `if`, `while`, `return`, blocks).
+//! * [`FunDecl`] — a single function declaration with its body.
+//! * [`Program`] — the top-level container: a list of function declarations.
+//!
+//! Convenience type aliases pin the `Ty` parameter to either `()` or `Type`:
+//! `UncheckedExpr`, `CheckedExpr`, `UncheckedProgram`, `CheckedProgram`, etc.
+//!
+//! # Design Decisions
+//!
+//! ## The `Ty` decoration parameter
+//!
+//! Every expression and statement node carries a `ty` field of type `Ty`.
+//! This is a *generic type parameter* — a placeholder that the caller fills
+//! in with a concrete type. Think of it like a slot that can hold different
+//! things depending on the phase:
+//!
+//! * **Parser output** (`Ty = ()`): the slot is empty — the parser doesn't
+//!   know types yet, so it stores the zero-size empty tuple `()`.
+//! * **Type-checker output** (`Ty = Type`): the slot holds the inferred
+//!   MiniC type, so every node knows whether it is an `Int`, `Float`, etc.
+//!
+//! Using a single parameterised definition avoids duplicating all the node
+//! types and keeps the parser and type checker structurally in sync.
+//!
+//! ## `ExprD` wraps `Expr`
+//!
+//! `Expr<Ty>` is the *shape* of an expression (which operation it is).
+//! `ExprD<Ty>` bundles that shape with its decoration: `{ exp: Expr<Ty>, ty: Ty }`.
+//! Consumers always work with `ExprD` so that type information is always
+//! available in one place.
+//!
+//! ## `Type::Any` for polymorphic stdlib parameters
+//!
+//! The built-in `print` function accepts any value type. Rather than adding
+//! special-case logic throughout the type checker, the stdlib registers
+//! `print` with a parameter type of `Type::Any`. The type checker's
+//! compatibility check (`types_compatible`) treats `Any` as matching
+//! everything, keeping the special case local to one function.
 
 /// MiniC types: scalar, array, function, and Any (for polymorphic native params).
 #[derive(Debug, Clone, PartialEq)]
@@ -63,7 +105,7 @@ pub enum Expr<Ty> {
     },
     /// Array literal: [ expr, expr, ... ]
     ArrayLit(Vec<ExprD<Ty>>),
-    /// Index expression: base[index]
+    /// Index expression: `base[index]`
     Index {
         base: Box<ExprD<Ty>>,
         index: Box<ExprD<Ty>>,

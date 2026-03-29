@@ -1,4 +1,37 @@
-//! Literal parsers for MiniC.
+//! Literal value parsers for MiniC.
+//!
+//! # Overview
+//!
+//! Exposes one main public function and four specialised ones:
+//!
+//! * [`literal`] — tries all literal forms in order and returns the first
+//!   match as a [`Literal`] enum variant.
+//! * [`boolean_literal`], [`integer_literal`], [`float_literal`],
+//!   [`string_literal`] — each parses exactly one literal kind.
+//!
+//! Also defines a local [`Literal`] enum (distinct from
+//! [`ast::Literal`](crate::ir::ast::Literal)) and a `From` conversion so
+//! the parser's result can be cheaply turned into the IR type.
+//!
+//! # Design Decisions
+//!
+//! ## Parsing order: boolean before integer before float
+//!
+//! The alternatives in [`literal`] are ordered deliberately:
+//!
+//! 1. **Boolean first** — `true` and `false` start with letters; if
+//!    `integer_literal` ran first it would fail harmlessly, but boolean is
+//!    tried first to be explicit about intent.
+//! 2. **Integer before float** — both start with digits, but `42` should
+//!    parse as `Int(42)`, not `Float(42.0)`. The integer parser explicitly
+//!    rejects input that looks like `42.3` (a digit-dot-digit sequence),
+//!    which lets float parsing handle those cases correctly.
+//!
+//! ## String escape handling via `escaped_transform`
+//!
+//! String literals support `\\`, `\"`, `\n`, and `\t` escape sequences.
+//! `nom`'s `escaped_transform` combinator handles the scanning and
+//! replacement in one pass, avoiding the need for a manual character loop.
 
 use crate::ir::ast::Literal as AstLiteral;
 use nom::{

@@ -1,4 +1,38 @@
 //! Expression parsers for MiniC.
+//!
+//! # Overview
+//!
+//! Exposes two public functions:
+//!
+//! * [`expression`] — the top-level entry point; parses any MiniC expression.
+//! * [`parse_call`] — parses a function call `name(arg, …)`; re-used by the
+//!   statement parser to handle call-statements.
+//!
+//! # Design Decisions
+//!
+//! ## Precedence via a parser chain
+//!
+//! Operator precedence is encoded by the order in which parsers call each
+//! other, from lowest to highest:
+//!
+//! ```text
+//! expression → logical_or → logical_and → logical_not
+//!           → relational → additive → multiplicative
+//!           → unary → primary → atom
+//! ```
+//!
+//! Each level calls the level above it for its operands, which naturally
+//! gives higher-precedence operators tighter binding — the same technique
+//! used in hand-written recursive-descent parsers. No separate precedence
+//! table or Pratt parser is needed for the small MiniC operator set.
+//!
+//! ## Left-associativity via an accumulator loop
+//!
+//! Operators at the same precedence level (e.g., `+` and `-`) are
+//! left-associative: `1 - 2 - 3` means `(1 - 2) - 3`. This is implemented
+//! with an explicit `loop` that accumulates results into `acc` rather than
+//! recursing on the right-hand side, which would accidentally produce
+//! right-associative trees.
 
 use crate::ir::ast::{Expr, ExprD, UncheckedExpr};
 use crate::parser::identifiers::identifier;

@@ -1,3 +1,65 @@
+//! Runtime value types for the MiniC interpreter.
+//!
+//! # Overview
+//!
+//! Defines the types that the interpreter works with at runtime:
+//!
+//! * [`Value`] — a runtime value: an integer, float, boolean, string, array,
+//!   void, or function.
+//! * [`FnValue`] — the two kinds of callable: a user-defined MiniC function
+//!   or a native Rust function.
+//! * [`NativeFn`] — a type alias for the signature of a native function.
+//! * [`RuntimeError`] — an error produced during interpretation (e.g.,
+//!   division by zero, out-of-bounds array access, undefined variable).
+//!
+//! # Design Decisions
+//!
+//! ## `Value` as a Rust enum
+//!
+//! In Rust, an `enum` can have *variants* that each carry different data.
+//! `Value` uses this to represent every possible runtime value in a single
+//! type:
+//!
+//! ```text
+//! Value::Int(42)          — an integer
+//! Value::Float(3.14)      — a floating-point number
+//! Value::Bool(true)       — a boolean
+//! Value::Str("hi")        — a string
+//! Value::Array([...])     — a list of Values
+//! Value::Void             — no value (returned by void functions)
+//! Value::Fn(FnValue::...) — a callable function
+//! ```
+//!
+//! This is the idiomatic Rust approach to *tagged unions* — a value that can
+//! be one of several shapes. Using `match` on a `Value` forces the code to
+//! handle every possible shape, which prevents runtime surprises.
+//!
+//! ## `FnValue` unifying user-defined and native functions
+//!
+//! Both MiniC functions and Rust-implemented stdlib functions are stored as
+//! `Value::Fn(FnValue)`. `FnValue` has two variants:
+//!
+//! * `FnValue::UserDefined(CheckedFunDecl)` — holds the full AST of the
+//!   function; the interpreter re-enters `exec_stmt` to run its body.
+//! * `FnValue::Native(NativeFn)` — holds a *function pointer*, i.e., a
+//!   reference to a specific Rust function. Calling it just calls that Rust
+//!   function directly.
+//!
+//! Storing both in the same `Value::Fn` variant means the call site in
+//! `eval_expr` does not need to know in advance whether a function is
+//! user-defined or native — `match` handles the dispatch.
+//!
+//! ## `NativeFn` as a function pointer type
+//!
+//! ```rust,ignore
+//! pub type NativeFn = fn(Vec<Value>) -> Result<Value, RuntimeError>;
+//! ```
+//!
+//! `NativeFn` is a *function pointer type*: a variable of this type holds
+//! the address of a Rust function with the matching signature. It is defined
+//! here (rather than in `stdlib`) to avoid a circular dependency: `stdlib`
+//! needs `Value`, and `Value` needs to reference the callable type.
+
 use std::fmt;
 
 use crate::ir::ast::CheckedFunDecl;

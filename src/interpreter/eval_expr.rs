@@ -1,3 +1,44 @@
+//! Expression evaluator for the MiniC interpreter.
+//!
+//! # Overview
+//!
+//! Exposes two public functions:
+//!
+//! * [`eval_expr`] — recursively evaluates a [`CheckedExpr`] to a [`Value`].
+//!   This is the workhorse of the interpreter: every operator, literal,
+//!   identifier lookup, array construction, and index access is handled here.
+//! * [`eval_call`] — dispatches a function call by name. Called both from
+//!   `eval_expr` (when a call appears inside an expression) and from
+//!   `exec_stmt` (when a call is used as a statement).
+//!
+//! # Design Decisions
+//!
+//! ## Recursive evaluation mirrors the recursive AST
+//!
+//! `eval_expr` is a recursive function: to evaluate `Add(left, right)`, it
+//! calls itself on `left` and `right`, then adds the resulting `Value`s.
+//! This mirrors the recursive structure of the AST and is the defining
+//! characteristic of tree-walking interpretation. Each AST node type has a
+//! corresponding `match` arm.
+//!
+//! ## Short-circuit evaluation for `and` / `or`
+//!
+//! `and` and `or` do *not* eagerly evaluate both operands. For `and`, if the
+//! left side is `false` the right side is never evaluated; for `or`, if the
+//! left side is `true` the right side is skipped. This matches the behaviour
+//! of these operators in most languages and is implemented simply by
+//! returning early inside the `match` arm rather than calling `eval_expr` on
+//! the second operand unconditionally.
+//!
+//! ## Function call scoping via `snapshot` / `restore`
+//!
+//! When `eval_call` calls a user-defined function, it snapshots the entire
+//! environment, binds the arguments to the parameter names, runs the body,
+//! then restores the snapshot. This gives the callee its own scope while
+//! automatically cleaning up afterward — no matter whether the function
+//! returns normally or early. See [`Environment`]
+//! for more detail on this mechanism.
+
 use crate::environment::Environment;
 use crate::ir::ast::{CheckedExpr, Expr, Literal};
 

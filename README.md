@@ -28,6 +28,89 @@ cargo test           # run the Rust library tests
 shelltest tests/cli/ # run the CLI tests (requires cargo build first)
 ```
 
+---
+
+## Nix Development Environment
+
+This project ships a [Nix flake](https://nixos.wiki/wiki/Flakes) that pins
+every tool to a reproducible version. If you have Nix installed you never need
+to manage Rust, Clippy, or shelltestrunner yourself — the flake does it for
+you.
+
+### What is Nix?
+
+Nix is a package manager (and optionally a full OS) built around one idea:
+every package is a pure function of its inputs. The same inputs always produce
+the same output, on any machine. A *flake* is a self-contained Nix project that
+declares its own dependencies in `flake.nix` and locks them to exact hashes in
+`flake.lock`, giving you fully reproducible builds.
+
+A `devShell` is a temporary shell that provides a curated set of tools without
+touching your normal environment. When you exit the shell those tools disappear.
+
+### Prerequisites
+
+1. [Install Nix](https://nixos.org/download) (single-user or multi-user).
+2. Enable flakes and the `nix-command` experimental feature. Add the following
+   to `~/.config/nix/nix.conf` (or `/etc/nix/nix.conf`):
+
+   ```
+   experimental-features = nix-command flakes
+   ```
+
+3. *(Optional but recommended)* Install
+   [`direnv`](https://direnv.net/) and
+   [`nix-direnv`](https://github.com/nix-community/nix-direnv).
+   The `.envrc` file at the root of this repo will then activate the dev shell
+   automatically whenever you `cd` into the project directory.
+
+### Entering the dev shell
+
+```bash
+nix develop          # enter the shell manually
+```
+
+Or, if you use direnv:
+
+```bash
+direnv allow         # run once; the shell activates on every cd after that
+```
+
+The dev shell provides:
+
+| Tool | Purpose |
+|------|---------|
+| `cargo` / `rustc` | Compile and run Rust code |
+| `rustfmt` | Auto-format source files |
+| `clippy` | Lint Rust code |
+| `rust-analyzer` | LSP backend for editors |
+| `shelltest` | Run the CLI test suite |
+
+### Building and testing inside the dev shell
+
+Once inside `nix develop` (or with direnv active), the standard workflow is:
+
+```bash
+# 1. Compile
+cargo build
+
+# 2. Run unit and integration tests
+cargo test
+
+# 3. Run the CLI (shelltestrunner) tests
+#    These require the binary to be built first (step 1).
+shelltest tests/cli/
+
+# 4. Check formatting
+cargo fmt --check
+
+# 5. Run the linter
+cargo clippy -- -D warnings
+```
+
+All commands above use the exact tool versions pinned in `flake.lock`, so
+results are identical regardless of what is installed on the host system.
+
 The binary accepts two commands:
 
 ```

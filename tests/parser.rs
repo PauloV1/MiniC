@@ -788,6 +788,32 @@ fn test_switch_multiple_cases_and_statements() {
 }
 
 #[test]
+fn test_switch_boolean_cases() {
+    let result = statement("switch x { case true: y = 1; case false: y = 0; default: y = 3; }").unwrap().1;
+    assert!(matches!(result.stmt, Statement::Switch { ref target, ref cases, ref default }
+        if matches!(target.exp, Expr::Ident(ref s) if s == "x") && cases.len() == 2 && default.len() == 1));
+    if let Statement::Switch { ref cases, ref default, .. } = result.stmt {
+        assert!(matches!(cases[0].0, Literal::Bool(true)));
+        assert!(matches!(cases[0].1.len(), 1));
+        if let Statement::Assign { ref target, ref value } = cases[0].1[0].stmt {
+            assert!(matches!(target.exp, Expr::Ident(ref s) if s == "y"));
+            assert_eq!(value.exp, Expr::Literal(Literal::Int(1)));
+        }
+        assert!(matches!(cases[1].0, Literal::Bool(false)));
+        assert!(matches!(cases[1].1.len(), 1));
+        if let Statement::Assign { ref target, ref value } = cases[1].1[0].stmt {
+            assert!(matches!(target.exp, Expr::Ident(ref s) if s == "y"));
+            assert_eq!(value.exp, Expr::Literal(Literal::Int(0)));
+        }
+        assert!(matches!(default.len(), 1));
+        if let Statement::Assign { ref target, ref value } = default[0].stmt {
+            assert!(matches!(target.exp, Expr::Ident(ref s) if s == "y"));
+            assert_eq!(value.exp, Expr::Literal(Literal::Int(3)));
+        }
+    }
+}
+
+#[test]
 fn test_switch_multiple_defaults_err() {
     assert!(statement("switch x { case 1: y = 1; default: y = 0; default: z = 2; }").is_err());
 }

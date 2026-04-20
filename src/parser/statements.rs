@@ -165,32 +165,34 @@ fn while_statement(input: &str) -> IResult<&str, UncheckedStmt> {
 
 /// Parse a switch statement: `switch (expr) { case literal: statement+; … default: statement+ }`.
 fn switch_statement(input: &str) -> IResult<&str, UncheckedStmt> {
-    let mut case_parse = |i| {
-        let (i, _) = preceded(multispace0, tag("case"))(i)?;
-        let (i, lit) = preceded(
-            multispace0, 
-            alt((
-                map(integer_literal, |n| Literal::Int(n)),
-                map(boolean_literal, |b| Literal::Bool(b))
-            ))
-        )(i)?;
-        let (i, _) = preceded(multispace0, char(':'))(i)?;
-        let (i, stmts) = many1(preceded(multispace0, statement))(i)?;
-        Ok((i, (lit, stmts)))
-    };
-
-    let mut default_parse = |i| {
-        let (i, _) = preceded(multispace0, tag("default"))(i)?;
-        let (i, _) = preceded(multispace0, char(':'))(i)?;
-        let (i, stmts) = many1(preceded(multispace0, statement))(i)?;
-        Ok((i, stmts))
-    };
-
     let (rest, _) = preceded(multispace0, tag("switch"))(input)?;
     let (rest, target) = preceded(multispace0, expression)(rest)?;
     let (rest, _) = preceded(multispace0, char('{'))(rest)?;
-    let (rest, cases) = many1(preceded(multispace0, &mut case_parse))(rest)?;
-    let (rest, default) = preceded(multispace0, &mut default_parse)(rest)?;
+    
+    let (rest, cases) = many1(map(
+        tuple((
+            preceded(multispace0, tag("case")),
+            preceded(
+                multispace0, 
+                alt((
+                    map(integer_literal, |i| Literal::Int(i)),
+                    map(boolean_literal, |b| Literal::Bool(b))
+                ))
+            ),
+            preceded(multispace0, char(':')),
+            many1(preceded(multispace0, statement)),
+        )),
+        |(_, literal, _, statements)| (literal, statements),
+    ))(rest)?;
+
+    let (rest, default) = preceded(multispace0, map(
+        tuple((
+            preceded(multispace0, tag("default")),
+            preceded(multispace0, char(':')),
+            many1(preceded(multispace0, statement)),
+        )),
+        |(_, _, statements)| statements,
+    ))(rest)?;
     
     let (rest, _) = preceded(multispace0, char('}'))(rest)?;
 

@@ -253,6 +253,11 @@ fn type_check_stmt(
                 let lit_ty = match lit {
                     Literal::Int(_) => Type::Int,
                     Literal::Bool(_) => Type::Bool,
+                    _ => {
+                        return Err(TypeError::new(
+                            "switch case label must be an Int or Bool literal",
+                        ));
+                    }
                 };
 
             // Garante que o tipo do literal é compatível com o tipo do target

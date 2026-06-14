@@ -34,7 +34,7 @@
 //! This gives MiniC correct lexical block scoping without a scope stack.
 
 use crate::environment::Environment;
-use crate::ir::ast::{CheckedExpr, CheckedStmt, Expr, Statement};
+use crate::ir::ast::{CheckedExpr, CheckedStmt, Expr, Literal, Statement};
 
 use super::eval_expr::{eval_call, eval_expr};
 use super::value::{RuntimeError, Value};
@@ -114,6 +114,7 @@ pub fn exec_stmt(stmt: &CheckedStmt, env: &mut Environment<Value>) -> ExecResult
         
         // --- Switch ---
         Statement::Switch { target, cases, default } => {
+            ensure_unique_switch_labels(cases)?;
             // Avalia o valor da expressão alvo
             let target_val = eval_expr(target, env)?;
 
@@ -294,4 +295,19 @@ fn extract_ident_name(expr: &CheckedExpr) -> Result<String, RuntimeError> {
             "nested array assignment only supported for simple variable bases".to_string(),
         )),
     }
+}
+
+fn ensure_unique_switch_labels(
+    cases: &[(Literal, Vec<CheckedStmt>)],
+) -> Result<(), RuntimeError> {
+    for (i, (label, _)) in cases.iter().enumerate() {
+        if cases.iter().skip(i + 1).any(|(other, _)| other == label) {
+            return Err(RuntimeError::new(format!(
+                "duplicate switch case label: {:?}",
+                label
+            )));
+        }
+    }
+
+    Ok(())
 }

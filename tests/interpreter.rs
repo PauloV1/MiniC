@@ -197,6 +197,114 @@ fn test_out_of_bounds() {
 }
 
 // ---------------------------------------------------------------------------
+// 7.10b Switch
+// ---------------------------------------------------------------------------
+#[test]
+fn test_switch_int_case_executes_matching_branch() {
+    let src = r#"
+        int choose(int x) {
+            switch x {
+                case 1: return 10;
+                case 2: return 20;
+                default: return 99;
+            }
+        }
+
+        void main() {
+            int result = choose(2);
+            if result != 20 {
+                int[] arr = [1];
+                int fail = arr[5];
+            }
+        }
+    "#;
+    assert!(run(src).is_ok(), "{}", run(src).unwrap_err());
+}
+
+#[test]
+fn test_switch_int_default_executes_when_no_case_matches() {
+    let src = r#"
+        int choose(int x) {
+            switch x {
+                case 1: return 10;
+                case 2: return 20;
+                default: return 99;
+            }
+        }
+
+        void main() {
+            int result = choose(3);
+            if result != 99 {
+                int[] arr = [1];
+                int fail = arr[5];
+            }
+        }
+    "#;
+    assert!(run(src).is_ok(), "{}", run(src).unwrap_err());
+}
+
+#[test]
+fn test_switch_bool_case_executes_matching_branch() {
+    let src = r#"
+        int choose(bool flag) {
+            switch flag {
+                case true: return 1;
+                case false: return 0;
+                default: return 99;
+            }
+        }
+
+        void main() {
+            int result = choose(false);
+            if result != 0 {
+                int[] arr = [1];
+                int fail = arr[5];
+            }
+        }
+    "#;
+    assert!(run(src).is_ok(), "{}", run(src).unwrap_err());
+}
+
+#[test]
+fn test_switch_assignment_to_outer_variable_persists() {
+    let src = r#"
+        void main() {
+            int result = 0;
+            switch 1 {
+                case 1: result = 10;
+                case 2: result = 20;
+                default: result = 99;
+            }
+
+            if result != 10 {
+                int[] arr = [1];
+                int fail = arr[5];
+            }
+        }
+    "#;
+    assert!(run(src).is_ok(), "{}", run(src).unwrap_err());
+}
+
+#[test]
+fn test_switch_duplicate_case_labels_error() {
+    let src = r#"
+        void main() {
+            switch 1 {
+                case 1: print("one");
+                case 1: print("again");
+                default: print("other");
+            }
+        }
+    "#;
+    let result = run(src);
+    assert!(result.is_err(), "expected duplicate switch case label error");
+    assert!(
+        result.unwrap_err().contains("duplicate switch case label"),
+        "error should mention duplicate switch case label"
+    );
+}
+
+// ---------------------------------------------------------------------------
 // 7.11 Undefined function (caught by type checker)
 // ---------------------------------------------------------------------------
 #[test]

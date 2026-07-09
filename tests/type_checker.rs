@@ -273,6 +273,40 @@ fn test_type_check_switch_unsupported_target_type() {
 }
 
 #[test]
+fn test_type_check_switch_float_case_literal_err() {
+    let src = r#"
+        void main() {
+            int x = 1;
+            int y = 0;
+            switch x {
+                case 1.5: y = 1;
+                default: y = 0;
+            }
+        }
+    "#;
+    let result = parse_and_type_check(src.trim());
+    assert!(result.is_err());
+    assert!(result.unwrap_err().message.contains("not supported"));
+}
+
+#[test]
+fn test_type_check_switch_string_case_literal_err() {
+    let src = r#"
+        void main() {
+            int x = 1;
+            int y = 0;
+            switch x {
+                case "str": y = 1;
+                default: y = 0;
+            }
+        }
+    "#;
+    let result = parse_and_type_check(src.trim());
+    assert!(result.is_err());
+    assert!(result.unwrap_err().message.contains("not supported"));
+}
+
+#[test]
 fn test_type_check_switch_duplicate_case_labels() {
     let src = r#"
         void main() {

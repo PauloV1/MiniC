@@ -1,6 +1,6 @@
 //! Integration tests for the MiniC TAC code generator.
 
-use mini_c::ir::ast::{CheckedExpr, CheckedStmt, ExprD, Expr, Literal, Statement, StatementD, Type};
+use mini_c::ir::ast::{CheckedExpr, CheckedStmt, ExprD, Expr, Literal, MatchCase, Statement, StatementD, Type};
 use mini_c::ir::tac::{Address, Instruction, Operator};
 use mini_c::codegen::tac_code_gen::{Environment, translate_statement};
 
@@ -76,11 +76,9 @@ fn test_switch_int_tac() {
         stmt: Statement::Switch {
             target: Box::new(int_var("x")),
             cases: vec![
-                (Literal::Int(1), vec![assign("z", ExprD { exp: Expr::Literal(Literal::Int(10)), ty: Type::Int })]),
-                (Literal::Int(2), vec![assign("z", ExprD { exp: Expr::Literal(Literal::Int(20)), ty: Type::Int })]),
-            ],
-            default: vec![
-                assign("z", ExprD { exp: Expr::Literal(Literal::Int(30)), ty: Type::Int })
+                (MatchCase::CaseLiteral(Literal::Int(1)), Box::new(assign("z", ExprD { exp: Expr::Literal(Literal::Int(10)), ty: Type::Int }))),
+                (MatchCase::CaseLiteral(Literal::Int(2)), Box::new(assign("z", ExprD { exp: Expr::Literal(Literal::Int(20)), ty: Type::Int }))),
+                (MatchCase::CaseDefault, Box::new(assign("z", ExprD { exp: Expr::Literal(Literal::Int(30)), ty: Type::Int }))),
             ],
         },
         ty: Type::Unit,
@@ -120,10 +118,8 @@ fn test_switch_bool_tac() {
         stmt: Statement::Switch {
             target: Box::new(ExprD { exp: Expr::Ident("b".to_string()), ty: Type::Bool }),
             cases: vec![
-                (Literal::Bool(true), vec![assign("z", ExprD { exp: Expr::Literal(Literal::Int(1)), ty: Type::Int })]),
-            ],
-            default: vec![
-                assign("z", ExprD { exp: Expr::Literal(Literal::Int(0)), ty: Type::Int })
+                (MatchCase::CaseLiteral(Literal::Bool(true)), Box::new(assign("z", ExprD { exp: Expr::Literal(Literal::Int(1)), ty: Type::Int }))),
+                (MatchCase::CaseDefault, Box::new(assign("z", ExprD { exp: Expr::Literal(Literal::Int(0)), ty: Type::Int }))),
             ],
         },
         ty: Type::Unit,
@@ -158,10 +154,8 @@ fn test_switch_complex_target_tac() {
         stmt: Statement::Switch {
             target: Box::new(add(int_var("x"), int_var("y"))),
             cases: vec![
-                (Literal::Int(5), vec![assign("z", ExprD { exp: Expr::Literal(Literal::Int(50)), ty: Type::Int })]),
-            ],
-            default: vec![
-                assign("z", ExprD { exp: Expr::Literal(Literal::Int(999)), ty: Type::Int })
+                (MatchCase::CaseLiteral(Literal::Int(5)), Box::new(assign("z", ExprD { exp: Expr::Literal(Literal::Int(50)), ty: Type::Int }))),
+                (MatchCase::CaseDefault, Box::new(assign("z", ExprD { exp: Expr::Literal(Literal::Int(999)), ty: Type::Int }))),
             ],
         },
         ty: Type::Unit,

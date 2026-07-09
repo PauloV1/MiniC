@@ -17,7 +17,7 @@
 //! block      := '{' statement* '}'
 //! if_stmt    := 'if' expr block ['else' block]
 //! while_stmt := 'while' expr block
-//! switch (expr) { case literal: statement+; … default: statement+ }
+//! switch expr { [case literal: statement*]* [default: statement*]? }
 //! simple     := return | decl | call | assign
 //! ```
 //!
@@ -41,17 +41,17 @@
 //! suffixes in a loop using the same pattern as the `primary` parser in
 //! `expressions.rs`, producing a left-associative `Index` chain.
 
-use crate::ir::ast::{Literal, Expr, ExprD, Statement, StatementD, UncheckedExpr, UncheckedStmt};
+use crate::ir::ast::{MatchCase, Expr, ExprD, Statement, StatementD, UncheckedExpr, UncheckedStmt};
 use crate::parser::expressions::{expression, parse_call};
 use crate::parser::functions::type_name;
 use crate::parser::identifiers::identifier;
-use crate::parser::literals::{integer_literal, boolean_literal};
+use crate::parser::literals::literal;
 use nom::{
     branch::alt,
     bytes::complete::tag,
     character::complete::{char, multispace0},
     combinator::{map, opt},
-    multi::{many0, many1},
+    multi::many0,
     sequence::{delimited, preceded, tuple},
     IResult,
 };
@@ -163,37 +163,45 @@ fn while_statement(input: &str) -> IResult<&str, UncheckedStmt> {
     ))
 }
 
-/// Parse a switch statement: `switch (expr) { case literal: statement+; … default: statement+ }`.
+/// Parse a switch-arm body: zero or more statements, with no `{ }` delimiters —
+/// the arm ends where the next `case`/`default`/`}` begins. Wrapped in a `Block`
+/// so each arm is still a single `StatementD`, matching `block_statement`'s shape.
+fn case_body(input: &str) -> IResult<&str, Box<UncheckedStmt>> {
+    map(many0(statement), |seq| {
+        Box::new(wrap(Statement::Block { seq }))
+    })(input)
+}
+
+/// Parse a switch statement: `switch expr { [case literal: statement*]* [default: statement*]? }`.
+/// `default` is represented as `MatchCase::CaseDefault`. At most one `default`
+/// may appear (a second `default:` is left unconsumed and trips the closing
+/// `}`, so it surfaces as a parse error).
 fn switch_statement(input: &str) -> IResult<&str, UncheckedStmt> {
     let (rest, _) = preceded(multispace0, tag("switch"))(input)?;
     let (rest, target) = preceded(multispace0, expression)(rest)?;
     let (rest, _) = preceded(multispace0, char('{'))(rest)?;
-    
-    let (rest, cases) = many1(map(
+
+    let (rest, mut cases) = many0(map(
         tuple((
             preceded(multispace0, tag("case")),
-            preceded(
-                multispace0, 
-                alt((
-                    map(integer_literal, |i| Literal::Int(i)),
-                    map(boolean_literal, |b| Literal::Bool(b))
-                ))
-            ),
+            preceded(multispace0, literal),
             preceded(multispace0, char(':')),
-            many1(preceded(multispace0, statement)),
+            preceded(multispace0, case_body),
         )),
-        |(_, literal, _, statements)| (literal, statements),
+        |(_, lit, _, body)| (MatchCase::CaseLiteral(lit.into()), body),
     ))(rest)?;
 
-    let (rest, default) = preceded(multispace0, map(
+    let (rest, default) = opt(map(
         tuple((
             preceded(multispace0, tag("default")),
             preceded(multispace0, char(':')),
-            many1(preceded(multispace0, statement)),
+            preceded(multispace0, case_body),
         )),
-        |(_, _, statements)| statements,
+        |(_, _, body)| (MatchCase::CaseDefault, body),
     ))(rest)?;
-    
+
+    cases.extend(default);
+
     let (rest, _) = preceded(multispace0, char('}'))(rest)?;
 
     Ok((
@@ -201,7 +209,6 @@ fn switch_statement(input: &str) -> IResult<&str, UncheckedStmt> {
         wrap(Statement::Switch {
             target: Box::new(target),
             cases,
-            default,
         }),
     ))
 }

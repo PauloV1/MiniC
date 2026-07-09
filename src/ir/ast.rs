@@ -71,6 +71,13 @@ pub enum Literal {
     Bool(bool),
 }
 
+/// A `switch` case label: either a literal to match against, or the `default` arm.
+#[derive(Debug, Clone, PartialEq)]
+pub enum MatchCase {
+    CaseLiteral(Literal),
+    CaseDefault,
+}
+
 /// Expression with type decoration.
 pub type Name = String;
 
@@ -151,10 +158,10 @@ pub enum Statement<Ty> {
         cond: Box<ExprD<Ty>>,
         body: Box<StatementD<Ty>>,
     },
+    /// Switch statement: dispatches to the first matching case, or `default` if none match.
     Switch {
         target: Box<ExprD<Ty>>,
-        cases: Vec<(Literal, Vec<StatementD<Ty>>)>,
-        default: Vec<StatementD<Ty>>,
+        cases: Vec<(MatchCase, Box<StatementD<Ty>>)>,
     },
     /// Return statement: `return [expr]`.
     Return(Option<Box<ExprD<Ty>>>),
